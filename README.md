@@ -73,8 +73,35 @@ Webhook Telemetry Stream
 
 ## What Broke, and How We Got Out
 
-- **Static Math Curve in Chart**: The recovery chart originally generated points using a static math power formula (`total * ratio^1.3`). While totals changed, the visual line was completely detached from actual transactions. We stripped out the fake formulas and rewrote the chart to compute directly from real-time transaction state slices. Now, the green recovery line climbs dynamically as payments recover, red spikes appear immediately during simulated bank outages, and the curve visibly plateaus when compliance guardrails pause high-value payments.
-- **State De-sync During Batch Ingestion**: Rapid batch processing caused the UI slide-out inspector to read stale immutable snapshots, making transactions look stuck in diagnosis even after they were recovered. We decoupled the telemetry stream from the visual inspector layer, introduced a reactive derived lookup (`activeSelectedTx`) keyed by order ID, and moved the batch simulator into a paced worker queue (Fast / Normal / Paced).
+### 01 · Static Math Curve ➔ Dynamic Transaction Slicing
+
+```
+[The Glitch]  Recovery chart computed points using a fixed curve: (total × ratio^1.3)
+      │
+      ├──> Symptom:  Graph line shape was identical on every load; detached from transactions
+      │
+      ▼
+[The Fix]     Rewrote engine to compute points directly from live transactional state slices
+      │
+      ├──> Live Climb  ➔ Green recovery line dynamically rises as each payment clears
+      ├──> Outage Jump ➔ Red risk curve shoots up +₹75,350 instantly on HDFC switch spike
+      └──> Safety Halt ➔ Green line visibly plateaus when high-value FinOps gates trigger
+```
+
+### 02 · Telemetry Stream Race Conditions ➔ Decoupled Reactive State
+
+```
+[The Glitch]  50+ failure webhooks ingested in rapid sequence triggered React state collisions
+      │
+      ├──> Symptom:  Slide-out inspector showed stale snapshots ("Awaiting AI") on recovered rows
+      │
+      ▼
+[The Fix]     Decoupled telemetry stream from UI selection via derived reactive lookup
+      │
+      ├──> Zero De-sync ➔ activeSelectedTx resolves reactively by order ID across batch mutations
+      ├──> Paced Queue  ➔ Added 3 execution speeds (Fast 200ms · Normal 700ms · Paced 1.6s)
+      └──> Determinism  ➔ Atomic lifecycle guards (at_risk ➔ diagnosing ➔ recovered | halted)
+```
 
 ---
 
