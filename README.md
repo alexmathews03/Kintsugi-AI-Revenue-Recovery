@@ -1,116 +1,104 @@
-# Kintsugi
-### Autonomous Revenue Recovery Engine for Payment Degradation
-**Track 03 - AI Revenue Recovery**
+# Kintsugi — Autonomous Revenue Recovery Engine
+**Razorpay Buildathon — Track 03: AI Revenue Recovery**
+
+Kintsugi monitors live Indian payment telemetry streams, diagnoses payment degradation at the bank switch and consumer level, and executes bounded recovery workflows to rescue dropped GMV without regulatory drift.
 
 ---
 
-## 1. Overview and What It Solves
-
-Digital commerce and subscription platforms in India lose 20% to 30% of their checkout and recurring gross merchandise value (GMV) to silent payment infrastructure degradation. These losses rarely occur in one clean step:
-
-1. **Issuing Bank and Central Switch Degradation**: Issuing banks frequently encounter upstream microservice latency spikes (such as NPCI U30, U69, 504 Gateway Timeout). Transactions drop silently minutes before formal bank outages are declared.
-2. **Recurring e-Mandate Liquidity Timing**: Subscription debits executed between the 28th and 31st often trigger U16 Insufficient Funds due to temporary month-end liquidity dips before salary credits land on the 1st to 5th.
-3. **Checkout Abandonment and Invalidated Tokens**: RBI CoFT (Card-on-File Tokenization) cryptogram expiries and 3DS OTP drop-offs lead to lost checkout conversions.
-4. **Overdue Commercial Receivables**: High-value B2B invoices sit past Net-15 or Net-30 credit windows without automated settlement reconciliation.
-
-**Kintsugi** is an autonomous revenue recovery agent sitting directly on payment webhook telemetry streams. It ingests raw failure codes, determines the root cause, and executes bounded recovery actions: dynamic rail failover, smart salary-cycle rescheduling, 1-tap localized WhatsApp recovery, and FinOps escalation, all within strict regulatory and anti-harassment guardrails.
-
----
-
-## 2. Architecture: 4-Stage Autonomous Pipeline
+## Architecture
 
 ```
 Webhook Telemetry Stream
-(payment.failed | mandate.halted)
-             |
-             v
-+-----------------------------------------+
-| Stage 1: Ingestion & Telemetry Parser   |
-| - Validates webhook signature           |
-| - Extracts raw NPCI & gateway codes     |
-+--------------------+--------------------+
-                     |
-                     v
-+-----------------------------------------+
-| Stage 2: Semantic Diagnostic Core       |
-| - Sub-100ms error classification        |
-| - Distinguishes technical vs funds dip  |
-+--------------------+--------------------+
-                     |
-                     v
-+-----------------------------------------+
-| Stage 3: Bounded Action Router          |
-| - Dynamic switch failover (UPI/Cards)   |
-| - Smart retry scheduler (1st-5th cycle) |
-| - 1-tap Hinglish WhatsApp payment link  |
-+--------------------+--------------------+
-                     |
-                     v
-+-----------------------------------------+
-| Stage 4: Safety & Regulatory Gate       |
-| - Max 2 touches per 48h (Anti-spam)     |
-| - DPDP Act / DND opt-out killswitch     |
-| - RBI pre-debit 24h SMS check           |
-| - Dual-control FinOps gate for >=₹50k   |
-+--------------------+--------------------+
-                     |
-                     v
-       Live Audit Log & GMV Yield
+(payment.failed · mandate.halted · checkout.abandoned)
+                    │
+                    ▼
+┌────────────────────────────────────────────────────────┐
+│             Stage 1: Telemetry Parser                  │
+│  Webhook signature check · raw NPCI error extraction   │
+│  Issuing bank & payment rail metadata enrichment       │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│        Stage 2: Semantic Diagnostic Engine             │
+│  Sub-100ms classification · failure root-cause analysis│
+│  Technical degradation vs. consumer liquidity timing   │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│          Stage 3: Bounded Action Router                │
+│  Dynamic switch failover · salary-cycle sequencer      │
+│  1-tap localized Hinglish WhatsApp recovery links      │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│          Stage 4: Regulatory & Safety Gate             │
+│  Anti-harassment cap (<= 2 touches / 48h)              │
+│  DPDP DND opt-out killswitch · RBI pre-debit checks    │
+│  High-value FinOps dual-approval gate (>= Rs. 50,000)  │
+└───────────────────────────┬────────────────────────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+     Live Telemetry Feed        Dynamic Recovery Chart
+     (Audit trail per txn)      (Real-time GMV trajectory)
 ```
 
 ---
 
-## 3. Meeting The Bar (Evaluation Criteria)
+## Core Recovery Interventions
 
-- **Measured Money Recovered**: Real-time ticker and transaction telemetry feed tracking dropped GMV versus actual GMV recovered across batches of 50+ records.
-- **Root Cause Diagnostics**: Explains the technical failure reason (NPCI code, gateway latency, bank switch status) alongside customer context.
-- **Compliant Escalation and Stopping Rules**:
-  - **Anti-Harassment Cap**: Maximum 2 touches per customer within a 48-hour cooldown window.
-  - **DPDP Opt-Out Killswitch**: Immediate halt if consumer replies STOP or is flagged on the National DND registry.
-  - **High-Value FinOps Gate**: Transactions >= ₹50,000 generate automated settlement drafts but require dual human controller sign-off.
-- **Tamper-Evident Audit Trail**: Every automated decision, regulatory check, and dispatch timestamp is permanently logged in chronological audit records.
-
----
-
-## 4. What Broke, and How We Got Out
-
-### The Problem
-During high-frequency webhook ingestion testing (50+ failures dispatched in rapid sequence), the UI telemetry feed and slide-out inspector suffered from state race conditions. The inspection drawer read stale immutable snapshots when opened during an ongoing batch run, causing diagnostic states to appear hung in "Awaiting AI diagnosis" even though the underlying recovery engine had already processed the transaction. Additionally, batch processing loops were directly triggering visual drawer selection, interrupting real-time monitoring.
-
-### The Solution
-1. **Decoupled Derived State**: Replaced direct component selection with a reactive derived lookup (`activeSelectedTx`) bound to the central transactional store by unique order ID. State transitions reflect live updates immediately without race conditions.
-2. **Worker Dispatcher Pacing**: Decoupled the batch simulation into a paced asynchronous execution queue with configurable processing intervals (Fast / Normal / Paced) to prevent UI thread lock.
-3. **Deterministic State Lifecycle**: Standardized transaction states across deterministic lifecycle phases (`at_risk` -> `diagnosing` -> `recovered` | `stopped_by_policy` | `escalated_to_human`), ensuring audit trail continuity and sub-10ms render cycles.
+| Failure Vector | Telemetry Trigger | Autonomous Intervention | Safety Guardrail |
+|---|---|---|---|
+| **Bank Switch Outage** | NPCI U30 / U69 latency spike | Dynamic switch failover to alternate healthy rail | Pre-retry authorization verification |
+| **Subscription Timing** | NPCI U16 Insufficient Funds | Salary-cycle reschedule (auto-retry on 1st–5th) | RBI mandatory 24h pre-debit notice check |
+| **Checkout Abandonment** | 3DS drop / Expired CoFT token | 1-tap Hinglish WhatsApp payment link | Max 2 touches per 48h; instant DND killswitch |
+| **Overdue B2B Invoice** | Smart Collect overdue >Net-15 | Automated settlement reconciliation draft | Dual-control FinOps gate for >= Rs. 50,000 |
 
 ---
 
-## 5. Repository Structure
+## Meeting "The Bar" (Evaluation Criteria)
 
-```
-src/
-  types.ts                    # TypeScript schemas (FailedTransaction, Diagnosis, RecoveryAction, AuditLog)
-  data/
-    syntheticData.ts          # 50+ realistic Indian fintech transaction records (UPI, Mandates, Cards, B2B)
-  engine/
-    complianceEngine.ts       # Guardrails, stopping rules, frequency caps, and audit logs
-    recoveryEngine.ts         # Diagnostic classifier & Hinglish WhatsApp / failover router
-  components/
-    Navbar.tsx                # Navigation bar with simulation controls & bank gateway health
-    BankHealthBar.tsx         # Real-time telemetry status, speed controls & outage simulator
-    MetricCards.tsx           # KPI scoreboard (Money at Risk, Recovered, Yield %, Latency)
-    RecoveryChart.tsx         # Dynamic trajectory chart (Batch Stream, 1H, 24H, 7D)
-    TransactionFeed.tsx       # Filterable live telemetry table with status badges
-    AgentDrawer.tsx           # Slide-out inspector (Root cause analysis, WhatsApp preview, Audit trail)
-    ArchitectureView.tsx      # Interactive architecture diagram & comparison matrix
-    ComplianceMatrixView.tsx  # Regulatory guardrails matrix & dynamic policy parameters
-    ManualInjectModal.tsx     # Modal for injecting custom failure edge-cases live
-  App.tsx                     # Main application layout & simulation controller
-  index.css                   # Core design tokens & typography
-```
+| Requirement | Implementation in Kintsugi |
+|---|---|
+| **Measured Money Recovered** | Live telemetry tracking total dropped GMV vs. recovered GMV across 50+ batch records |
+| **Explainable Root Cause** | Exact NPCI error codes, bank latency context, and failure archetype surfaced in the inspector |
+| **Stopping Rules** | Maximum 2 touches per 48 hours; immediate outreach termination on STOP / DND response |
+| **Compliant Escalation** | High-ticket transactions (>= Rs. 50,000) pause at a FinOps dual-control approval gate |
+| **Audit Trail** | Permanent, timestamped chronological log for every decision, guardrail check, and dispatch |
 
 ---
 
-## 6. Running Locally
+## What Broke, and How We Got Out
+
+- **Static Math Curve in Chart**: The recovery chart originally generated points using a static math power formula (`total * ratio^1.3`). While totals changed, the visual line was completely detached from actual transactions. We stripped out the fake formulas and rewrote the chart to compute directly from real-time transaction state slices. Now, the green recovery line climbs dynamically as payments recover, red spikes appear immediately during simulated bank outages, and the curve visibly plateaus when compliance guardrails pause high-value payments.
+- **State De-sync During Batch Ingestion**: Rapid batch processing caused the UI slide-out inspector to read stale immutable snapshots, making transactions look stuck in diagnosis even after they were recovered. We decoupled the telemetry stream from the visual inspector layer, introduced a reactive derived lookup (`activeSelectedTx`) keyed by order ID, and moved the batch simulator into a paced worker queue (Fast / Normal / Paced).
+
+---
+
+## Key Features
+
+- **Live Telemetry Stream**: Real-time webhook ingestion table with search, rail filtering, and status badges.
+- **Dynamic Trajectory Graph**: Area chart tracking GMV at risk vs. recovered revenue across Batch Stream, 1H, 24H, and 7D views.
+- **Slide-out Audit Inspector**: Deep-dive into root cause diagnostics, Hinglish WhatsApp previews, and timestamped audit logs.
+- **Simulation Speed Controller**: Toggle between Fast (200ms), Normal (700ms), and Paced (1.6s) simulation, with single-step debugging.
+- **Outage Spike Trigger**: One-click simulation of HDFC central switch degradation (injecting Rs. 75,350 at risk).
+- **Interactive Guardrail Matrix**: Live sliders to test policy thresholds and verify autonomous halts in real time.
+
+---
+
+## Future Roadmap
+
+- **ML Liquidity Predictor**: Train light gradient-boosted trees on historical recurring debit traces to predict individual consumer salary replenishment windows instead of calendar rules.
+- **Native UPI In-App Intent**: Expand 1-tap WhatsApp recovery into deep-links opening installed UPI apps (GPay, PhonePe, Paytm) directly without web browser redirects.
+- **Proactive NPCI Outage Parsing**: Integrate LLM scrapers on bank status feeds and NPCI downtime circulars to reroute gateway traffic *before* payments drop.
+- **Automated ERP Ledger Clearance**: Two-way webhooks for enterprise accounting software (Tally, Zoho Books) to reconcile recovered B2B invoices automatically.
+
+---
+
+## Running Locally
 
 ```bash
 # 1. Install dependencies
@@ -119,6 +107,35 @@ npm install
 # 2. Start local development server
 npm run dev
 
-# 3. Build for production
+# 3. Build production bundle
 npm run build
+```
+
+---
+
+## Project Structure
+
+```
+kintsugi/
+├── src/
+│   ├── engine/
+│   │   ├── recoveryEngine.ts       # Diagnostic classifier & recovery intervention router
+│   │   └── complianceEngine.ts     # RBI guardrails, stopping rules & audit trails
+│   ├── components/
+│   │   ├── Navbar.tsx              # Top bar, bank gateway health & simulation controls
+│   │   ├── BankHealthBar.tsx       # Live status, speed controller & outage spike trigger
+│   │   ├── MetricCards.tsx         # Real-time GMV scoreboard & processing latency
+│   │   ├── RecoveryChart.tsx       # Dynamic trajectory chart (Batch, 1H, 24H, 7D)
+│   │   ├── TransactionFeed.tsx     # Telemetry table with status badges & filter controls
+│   │   ├── AgentDrawer.tsx         # Slide-out inspector (Root cause, WhatsApp copy, Audit log)
+│   │   ├── ArchitectureView.tsx    # 4-stage pipeline architecture & system comparison
+│   │   ├── ComplianceMatrixView.tsx# Guardrail parameter controller & compliance matrix
+│   │   └── ManualInjectModal.tsx   # Custom payment failure injection modal
+│   ├── data/
+│   │   └── syntheticData.ts        # 50+ realistic Indian payment failure records
+│   ├── types.ts                    # Core TypeScript interfaces & schemas
+│   ├── App.tsx                     # Main layout & simulation state controller
+│   └── index.css                   # Design tokens & typography
+├── DEMO_SCRIPT.md                  # 5-minute video presentation script
+└── package.json
 ```
