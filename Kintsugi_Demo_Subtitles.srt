@@ -1,0 +1,259 @@
+1
+00:00:00,000 --> 00:00:08,000
+Hey everyone, this is Kintsugi, built for the AI Revenue Recovery Track.
+
+2
+00:00:08,000 --> 00:00:12,800
+Now before I show you guys what happens in this web simulation, let me just briefly explain
+
+3
+00:00:12,800 --> 00:00:14,640
+the problem at hand.
+
+4
+00:00:14,640 --> 00:00:19,120
+In India, when people make online payments, a huge number of them fail.
+
+5
+00:00:19,120 --> 00:00:24,600
+But most of the time, it's not due to the customer not having enough money.
+
+6
+00:00:24,600 --> 00:00:27,080
+It's usually something like technical friction.
+
+7
+00:00:27,080 --> 00:00:33,960
+For example, if HDFC servers get slow for around 5 minutes during lunch, or maybe it's somebody's
+
+8
+00:00:33,960 --> 00:00:39,760
+monthly subscription that tries to charge them on the 29th, but their salary doesn't
+
+9
+00:00:39,760 --> 00:00:41,920
+arrive until the 1st.
+
+10
+00:00:41,920 --> 00:00:46,000
+Or maybe it's just a bank app timeout.
+
+11
+00:00:46,000 --> 00:00:51,160
+Normally payment gateways just give up and show a red 'Payment Failed' error.
+
+12
+00:00:51,160 --> 00:00:56,160
+The customer then leaves and the business loses around 20 to 30 percent of their sales.
+
+13
+00:00:56,160 --> 00:01:01,000
+Kintsugi here solves this, and listens to payment errors.
+
+14
+00:01:01,000 --> 00:01:07,040
+The second they happen, it figures out what exactly went wrong, and automatically recovers
+
+15
+00:01:07,040 --> 00:01:09,040
+the money.
+
+16
+00:01:09,040 --> 00:01:14,440
+Okay, let's see it working live.
+
+17
+00:01:14,440 --> 00:01:22,040
+Right now we have over ₹14 Lakhs at risk running this batch recovery.
+
+18
+00:01:22,040 --> 00:01:28,200
+You can see how Kintsugi looks at each problem in real time and applies the best fix.
+
+19
+00:01:28,200 --> 00:01:31,560
+Let's say the bank switch is slow.
+
+20
+00:01:31,560 --> 00:01:33,880
+It switches it to a working route.
+
+21
+00:01:33,880 --> 00:01:40,320
+If the auto-debit failed at the end of the month, it reschedules it for salary day.
+
+22
+00:01:40,320 --> 00:01:46,920
+If somebody dropped out of checkout, it sends them a simple 1-tap WhatsApp link.
+
+23
+00:01:46,920 --> 00:01:50,640
+You can see how this graph is climbing.
+
+24
+00:01:50,640 --> 00:01:55,640
+The green curve is climbing as each payment is being recovered.
+
+25
+00:01:55,640 --> 00:02:02,680
+You can see how it's reached up to ₹6 Lakhs in revenue recovered from ₹14 Lakhs at risk,
+
+26
+00:02:02,680 --> 00:02:06,200
+close to 50 percent.
+
+27
+00:02:06,200 --> 00:02:11,480
+This bar showcases where exactly the problems were and what fix we applied.
+
+28
+00:02:11,480 --> 00:02:17,480
+Now let's understand what happens behind the scenes.
+
+29
+00:02:17,480 --> 00:02:23,880
+I will take a look at this payment over here with an NPCI U30, which essentially means
+
+30
+00:02:23,880 --> 00:02:26,720
+that the payment didn't go through.
+
+31
+00:02:26,720 --> 00:02:33,760
+Instead of asking the customer to try the payment all over again, Kintsugi automatically
+
+32
+00:02:33,760 --> 00:02:40,320
+reroutes it to a healthy bank switch and the money goes through.
+
+33
+00:02:40,320 --> 00:02:46,560
+And let's look at this over here: for dropped payments, it instantly sends a 1-tap WhatsApp
+
+34
+00:02:46,560 --> 00:02:55,160
+link that brings them back to where they were and helps them complete checkout.
+
+35
+00:02:55,160 --> 00:02:59,920
+Looking at any payment over here, you can notice how there is a 100 percent complete audit
+
+36
+00:02:59,920 --> 00:03:07,920
+log that shows what exactly happened, when it exactly happened, and what was implemented
+
+37
+00:03:07,920 --> 00:03:13,080
+in order to fix it—which is really convenient for anybody in the FinOps team to understand
+
+38
+00:03:13,080 --> 00:03:15,680
+what happened.
+
+39
+00:03:15,680 --> 00:03:19,160
+Now safety is just as important as recovery.
+
+40
+00:03:19,160 --> 00:03:23,240
+We can't have an automated system that consistently spams customers.
+
+41
+00:03:23,240 --> 00:03:29,920
+Notice how this payment over here says HALTED (DND / POLICY).
+
+42
+00:03:29,920 --> 00:03:34,240
+This is because the customer has replied STOP to our messages.
+
+43
+00:03:34,240 --> 00:03:43,480
+We've even set a hard rule that no more than 2 messages can be sent in 48 hours.
+
+44
+00:03:43,480 --> 00:03:49,360
+Looking at this payment here for ₹1.5 Lakhs: for high-value payments like this, AI
+
+45
+00:03:49,360 --> 00:03:52,800
+doesn't touch the money directly or automatically.
+
+46
+00:03:52,800 --> 00:03:57,800
+It prepares the settlement, but pauses at a FinOps approval gate so that a real
+
+47
+00:03:57,800 --> 00:04:02,720
+person in the team can then review it and sign off.
+
+48
+00:04:02,720 --> 00:04:04,520
+This is the Guardrails tab.
+
+49
+00:04:04,520 --> 00:04:12,560
+Over here we have the ability to set constraints however we want, which the system enforces
+
+50
+00:04:12,560 --> 00:04:13,560
+automatically.
+
+51
+00:04:13,560 --> 00:04:17,800
+Now let's test an unexpected bank outage.
+
+52
+00:04:17,800 --> 00:04:21,200
+I will click on this 'Simulate HDFC Spike'.
+
+53
+00:04:21,200 --> 00:04:26,040
+We can see how the red graph has increased.
+
+54
+00:04:26,040 --> 00:04:33,280
+Three new failures totaling around 70K rupees have been injected into the
+
+55
+00:04:33,280 --> 00:04:34,280
+queue.
+
+56
+00:04:34,280 --> 00:04:41,600
+Kintsugi flags this immediately, isolates the degraded bank route, and starts protecting those transactions
+
+57
+00:04:41,600 --> 00:04:42,600
+from drops.
+
+58
+00:04:42,600 --> 00:04:48,360
+As we can see here in real time, it has recovered essentially all the money that was almost
+
+59
+00:04:48,360 --> 00:04:49,680
+lost.
+
+60
+00:04:49,680 --> 00:04:57,640
+To wrap up, Kintsugi takes dropped transactions back into real revenue.
+
+61
+00:04:57,640 --> 00:05:06,120
+It gives merchants measurable money recovered, zero customer spam, and a complete audit trail.
+
+62
+00:05:06,120 --> 00:05:11,840
+This is the architecture of the 4-stage pipeline that Kintsugi uses.
+
+63
+00:05:11,840 --> 00:05:17,760
+And here is a comparison of Kintsugi against legacy payment recovery
+
+64
+00:05:17,760 --> 00:05:18,760
+systems.
+
+65
+00:05:18,760 --> 00:05:19,800
+Thank you.

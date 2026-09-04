@@ -1,0 +1,164 @@
+00:01
+Hey everyone, this is Kintsugi, built for the AI Revenue Recovery track. 
+
+00:04
+Now before I showcase what happens in this web simulation, let me just briefly explain the problem at hand. In India, when people make online payments, 
+
+00:10
+a huge number of them fail, but most of the time it's not due to the customer not having enough money. 
+
+00:15
+It's usually some technical friction. 
+
+00:16
+For example, if HDFC servers get slow for around 5 minutes during lunch, 
+
+00:19
+maybe it's somebody's monthly subscription that tries to charge them on the 29th, but their salary doesn't arrive until the 1st. 
+
+00:24
+Or maybe it's just a bank app timeout.
+
+00:27
+Normally payment gateways just give up and show a red 'Payment Failed' error. 
+
+00:30
+The customer then leaves and the business loses around 20 to 30% of their sales. 
+
+00:34
+Kintsugi here solves this. 
+
+00:35
+It listens to payment errors the second they happen,
+
+00:37
+figures out what exactly went wrong, and automatically recovers the money.
+
+00:41
+OK, let's see it working live. 
+
+00:44
+Right now we have over 14 Lakhs at risk running this batch recovery.
+
+00:51
+You can see how Kintsugi looks at each problem in real time, and applies the best fix. 
+
+00:57
+Let's say if the bank server was slow, it switches it to a working route. 
+
+01:03
+If auto-debit failed at the end of the month, it reschedules it for salary day. 
+
+01:09
+If somebody dropped out of checkout, it sends them a simple 1-tap WhatsApp link.
+
+01:16
+And you can see how this graph is climbing. 
+
+01:19
+The green is climbing as
+
+01:22
+each payment is being recovered.
+
+01:25
+We can see how it's reached up to 6 Lakhs in revenue recovered
+
+01:31
+from 14 Lakhs at risk, close to 50%.
+
+01:35
+And this bar showcases where exactly the problems were and what fixes we applied.
+
+01:41
+Now let's understand what happens behind the scenes.
+
+01:45
+I will take a look at this payment over here with an NPCI U30, which essentially means that the payment didn't go through. 
+
+01:55
+Instead of asking the customer to try the payment all over again, Kintsugi automatically reroutes it to a healthy bank switch and the money goes through.
+
+02:08
+And let's look at this over here for dropped payments:
+
+02:12
+it instantly sends a 1-tap WhatsApp link that brings them back to where they were
+
+02:19
+and helps them solve the issue.
+
+02:23
+Looking at any payment over here, you can notice how there is a 100% complete audit log that shows what exactly happened, when it exactly happened, and what was implemented in order to fix it, which is really convenient for anybody in the FinOps team to understand what happened.
+
+02:42
+Now, safety is just as important as recovery. 
+
+02:45
+We can't just have an automated system that consistently spams customers.
+
+02:51
+Notice how this payment over here says HALTED (DND / POLICY). 
+
+02:56
+This is because the customer has replied STOP to our messages. 
+
+03:01
+We've even set a hard rule that no more than two messages can be sent in 48 hours.
+
+03:10
+Looking at this payment here for 1.5 Lakhs: for high-value payments like this, 
+
+03:15
+AI doesn't touch the money directly or automatically. 
+
+03:18
+It prepares the settlement, but pauses at the FinOps gate approval so that a real person in the team can then review it and sign off.
+
+03:29
+This is the Guardrails tab. 
+
+03:31
+Over here we have the ability to set constraints however we want, which the system enforces immediately.
+
+03:40
+Now let's test an unexpected bank outage. 
+
+03:42
+I will click on this 'Simulate HDFC Spike'. 
+
+03:45
+We can see how the red
+
+03:48
+graph has increased and 3 new problems have been added,
+
+03:53
+around 70K rupees that have been injected into the queue.
+
+04:00
+Kintsugi flags this immediately,
+
+04:02
+isolates the degraded bank rail, and starts protecting those transactions from further drops. 
+
+04:07
+As we can see here in real time, it has recovered essentially all the money that was almost lost. To wrap up:
+
+04:16
+Kintsugi takes dropped transactions
+
+04:20
+back into real revenue. 
+
+04:23
+It gives merchants measurable money recovered, zero customer spam, and a complete audit trail.
+
+04:31
+This is the architecture of the 4-stage pipeline that Kintsugi uses. 
+
+04:37
+And here is a small comparison of Kintsugi against other legacy payment recovery systems. 
+
+04:44
+Thank you.
